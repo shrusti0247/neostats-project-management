@@ -25,6 +25,31 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+app.post("/api/users", async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({
+        error: "Name and email are required",
+      });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+      },
+    });
+
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to create user",
+    });
+  }
+});
+
 const PORT = 5002;
 
 app.listen(PORT, () => {

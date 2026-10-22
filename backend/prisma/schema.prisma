@@ -12,4 +12,18 @@ model User {
   name      String
   email     String   @unique
   createdAt DateTime @default(now())
+
+  tasks     Task[]
+}
+
+model Task {
+  id        Int      @id @default(autoincrement())
+  title     String
+  description String?
+  status    String   @default("TODO")
+  priority  String   @default("MEDIUM")
+  createdAt DateTime @default(now())
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
