@@ -7,23 +7,97 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  VIEWER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum ProjectMemberRole {
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  VIEWER
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
   email        String   @unique
-  passwordHash String?
+  passwordHash String
+  role         Role     @default(TEAM_MEMBER)
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
-  tasks        Task[]
+  updatedAt    DateTime @updatedAt
+
+  managedProjects Project[]       @relation("ProjectManager")
+  memberships     ProjectMember[]
+  assignedTasks   Task[]          @relation("AssignedTasks")
+  comments        Comment[]
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  managerId Int
+  manager   User @relation("ProjectManager", fields: [managerId], references: [id])
+
+  members  ProjectMember[]
+  tasks    Task[]
+}
+
+model ProjectMember {
+  id        Int               @id @default(autoincrement())
+  role      ProjectMemberRole
+  createdAt DateTime          @default(now())
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 model Task {
-  id        Int      @id @default(autoincrement())
-  title     String
+  id          Int        @id @default(autoincrement())
+  title       String
   description String?
-  status    String   @default("TODO")
-  priority  String   @default("MEDIUM")
+  status      TaskStatus @default(TODO)
+  version     Int        @default(1)
+  dueDate     DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assignedToId Int?
+  assignedTo   User? @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  comments Comment[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
   createdAt DateTime @default(now())
 
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 }
