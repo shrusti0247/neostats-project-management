@@ -1,6 +1,18 @@
+
 const express = require("express");
 const cors = require("cors");
 const { PrismaClient } = require("@prisma/client");
+
+const authRoutes = require("./routes/auth");
+const projectRoutes = require("./routes/projects");
+const taskRoutes = require("./routes/tasks");
+const teamRoutes = require("./routes/team");
+const commentRoutes = require("./routes/comments");
+
+const {
+  authenticateToken,
+  authorizeRoles,
+} = require("./middleware/auth");
 
 const app = express();
 const prisma = new PrismaClient();
@@ -8,47 +20,51 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// API routes
+app.use("/api/auth", authRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/team", teamRoutes);
+app.use("/api/comments", commentRoutes);
+
+// Health check
 app.get("/api/health", (req, res) => {
   res.json({
     message: "Backend is running!",
   });
 });
 
-app.get("/api/users", async (req, res) => {
-  try {
-    const users = await prisma.user.findMany();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({
-      error: "Failed to fetch users",
-    });
-  }
-});
+// Admin-only users route
+app.get(
+  "/api/users",
+  authenticateToken,
+  authorizeRoles("ADMIN"),
+  async (req, res) => {
+    try {
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
-app.post("/api/users", async (req, res) => {
-  try {
-    const { name, email } = req.body;
+      res.json(users);
+    } catch (error) {
+      console.error("Fetch users error:", error);
 
-    if (!name || !email) {
-      return res.status(400).json({
-        error: "Name and email are required",
+      res.status(500).json({
+        error: "Failed to fetch users",
       });
     }
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-      },
-    });
-
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(500).json({
-      error: "Failed to create user",
-    });
   }
-});
+);
 
 const PORT = 5002;
 
